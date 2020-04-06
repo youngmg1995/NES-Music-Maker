@@ -1,0 +1,264 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr  1 17:14:19 2020
+
+@author: Mitchell
+"""
+
+# imports
+from model_builder import model_1_builder
+from nesm_loader import load_data, load_song
+import nesmdb
+from nesmdb.vgm.vgm_to_wav import save_vgmwav
+import tensorflow as tf
+import numpy as np
+import os
+
+# nesmdb folder manually added to environment libraries 
+
+# Function for transforming seprsco data to ints using our mapping
+def label2int(dataset, mappings):
+    '''
+    '''
+    # Initialize list for our transformed data
+    int_dataset = []
+    # Loop over data and apply our mapping
+    for i in range(len(dataset)):
+        data = dataset[i]
+        mapping = mappings[i]
+        new_data = np.zeros(data.shape, type(mapping[data[0][0]]))
+        for j in range(data.shape[1]):
+            new_data[0][j] = mapping[data[0][j]]
+        # Append transformed data to our output list
+        int_dataset.append(new_data)
+    
+    return int_dataset
+
+### Function for generating a new song using our model and a seed
+def generate_track(model, seed, generation_length=1000, num_songs = 10,
+                   keep_seed = True, gen_method = 0):
+    '''
+    '''    
+    # Initial Input
+    input_eval = seed
+    
+    # Reset our model state
+    model.reset_states()
+    
+    if gen_method == 0:
+        # Array to store our generated track
+        track = [np.zeros((generation_length),type(seed[0][0][0])) for i in range(len(seed))]
+        
+        # variables for tracking progress
+        interval = 1
+        interval_length = generation_length / 10
+                
+        # Iterate over generation length appending each newly generated note to our track
+        for i in range(generation_length):
+            # Grab output probabilities for next notes
+            predictions = model(input_eval)
+            
+            # Grabbing id for next note in each stream by sampling from our distr.
+            for j in range(len(predictions)):
+                # Grab predictions for stream and remove the batch dimension
+                prediction =tf.squeeze(predictions[j], 0) 
+                # Sample from our distribution
+                predicted_id = tf.random.categorical(prediction, num_samples=1)[-1,0].numpy()
+            
+                # Update the input to pass into the model on next pass
+                input_eval[j] = np.array(predicted_id).reshape(1,1)
+                
+                # Append predicted_id for stream to list
+                track[j][i] = predicted_id
+                
+            # Print update everytime 10% of track generated
+            if (i+1) / interval_length >= interval:
+                print('Percent of Track Generated: {}%'.format(interval*10))
+                interval += 1
+        
+        # Add seed if desired           
+        if keep_seed:
+            for i in range(len(track)):
+                track[i] = np.concatenate((seed[i].reshape(1),track[i]))
+            
+    elif gen_method == 1:
+        # Empty array to store our generated track
+        track = [None for i in range(len(seed))]
+        # Add seed is desired
+        for i in range(len(seed)):
+            track[i] = seed[i][0]
+                
+        # Initiate counters
+        end_notes = 0
+        # Generate new notes until number of songs (number of end notes) created
+        while end_notes < num_songs:
+            # Grab output probabilities for next notes
+            predictions = model(input_eval)
+            
+            # Grabbing id for next note in each stream by sampling from our distr.
+            predicted_ids =[]
+            for i in range(len(predictions)):
+                # Grab predictions for stream and remove the batch dimension
+                prediction =tf.squeeze(predictions[i], 0) 
+                # Sample from our distribution
+                predicted_id = tf.random.categorical(prediction, num_samples=1)[-1,0].numpy()
+            
+                # Update the input to pass into the model on next pass
+                input_eval[i] = np.array(predicted_id).reshape(1,1)
+                
+                # Append predicted_id for stream to list
+                predicted_ids.append(predicted_id)
+            
+            # Add the predicted notes for each stream to our song
+            for i in range(len(seed)):
+                track[i] = np.concatenate((track[i],np.array(predicted_ids[i]).reshape(1)))
+                # Check to see if end note
+                if i == 4 and predicted_ids[i] == 0:
+                    end_notes += 1
+                    model.reset_states()
+                    print('Tracks Generated: {}'.format(end_notes))
+        
+        # remove seed if desired           
+        if not keep_seed:
+            for i in range(len(track)):
+                track[i] = track[i][1:]
+    
+    # Print that completed
+    print('Track Generation Complete')
+    
+    return track
+
+### Function that parses tracks generated by our model to identify and create
+### all valid seprsco tracks.
+def generate_seprsco(track, mappings, min_length = 1):
+    '''
+    '''
+    # Finding indices of all the end notes
+    end_indxs = np.where(track[-1] == 0)[0]
+    # Add start and end of track
+    if 0 not in end_indxs:
+        end_indxs = np.concatenate((np.array([0]),end_indxs))
+    if len(track[-1])-1 not in end_indxs:
+        end_indxs = np.concatenate((end_indxs,np.array([len(track[-1])-1])))
+    
+    # Initialize array to store each valid track
+    tracks = []
+    
+    # Iterate over indices to check and grab valid tracks
+    # Will also convert from integers back to labels using mapping
+    for i in range(len(end_indxs) - 1):
+        m , n = end_indxs[i] , end_indxs[i+1]
+        if n - m > min_length:
+            new_track = []
+            for j in range(len(track)):
+                new_track.append(mappings[j][track[j][m+1:n]])
+            tracks.append(new_track)
+    
+    # Reformat each track to seprsco file
+    seprsco_tracks = []
+    for track in tracks:
+        track = track[:-1]
+        n , m = len(track) , track[0].shape[0]
+        score = []
+        for i in range(m):
+            note = []
+            for j in range(n):
+                note.append(track[j][i])
+            score.append(note)
+        # Properly format all required data for seprsco track
+        score = np.array(score, np.uint8)
+        nsamps = 1839 * score.shape[0]
+        rate = 24.0
+        seprsco_tracks.append((rate, nsamps, score))
+    
+    return seprsco_tracks
+
+### Function for transforming our model outputs into audio waveforms
+def generate_waveform():
+    '''
+    '''
+    pass
+
+### Reload mappings and dataset. Delete dataset to free up memory.
+data_foldername = '../nesmdb24_seprsco/train/'
+save_filename = 'transformed_dataset.json'
+dataset , labels2int_maps , int2labels_maps = load_data(data_foldername, save_filename)
+del dataset
+
+### Reinitiating our models and loading our saved weights from training
+model = model_1_builder(rnn_units = 256,
+                        input_dims = [77,77,89,17,2], 
+                        emb_output_dims = [128,128,128,32,8],
+                        batch_size = 1
+                        )
+
+# Restore the model weights for the last checkpoint after training
+checkpoint_dir = './training_checkpoints'
+checkpoint_prefix = os.path.join(checkpoint_dir, "model_1_ckpt")
+model.load_weights(checkpoint_prefix)
+model.build(tf.TensorShape([1, None, 5]))
+
+# Print Summary of each model
+model.summary()
+
+# Create two types of seeds for generating songs from each model
+#   1) Indicater used to signify start/end of song file
+#   2) Random note from chosen song
+
+# Start note seed
+start_seed = [np.zeros((1,1),int) for i in range(5)]
+
+# Random seed from chosen song (DK Country 4 Theme)
+song_filename = "../nesmdb24_seprsco/train/322_SuperMarioBros__00_01RunningAbout.seprsco.pkl"
+song_data = load_song(song_filename)
+random_idx = np.random.choice(song_data[0].shape[0])
+my_seed = [song_data[i][random_idx].reshape((1,1)) for i in range(5)]
+my_seed = label2int(my_seed, labels2int_maps)
+
+# Set length of new track we would like to generate or # of tracks
+generation_length = 2000
+num_songs = 10
+
+# Generate songs
+print('Generating track of length {} using random song seed'.\
+      format(generation_length))
+random_track = generate_track(model, my_seed,
+                              generation_length = generation_length,
+                              gen_method = 0)
+
+print('Generating track with {} songs using start seed'.format(num_songs))
+my_track = generate_track(model, my_seed, num_songs = num_songs,
+                              gen_method = 1)
+
+
+# Parse the valid NES seprsco tracks from our model generated tracks 
+# above a certain length
+min_length = 100
+
+print('Converting generated track to valid seprsco tracks with length > {}.'\
+      .format(min_length))
+random_tracks = generate_seprsco(random_track, int2labels_maps, min_length)
+my_tracks = generate_seprsco(my_track, int2labels_maps, min_length)
+
+# Transforming generated songs into waveforms so we can listen!!!
+print('Converting spersco tracks to WAV audio tracks.')
+random_wavs , my_wavs = [] , []
+for track in random_tracks:
+    wav = nesmdb.convert.seprsco_to_wav(track)
+    random_wavs.append(wav)
+for track in my_tracks:
+    wav = nesmdb.convert.seprsco_to_wav(track)
+    my_wavs.append(wav)
+
+# Save our wav tracks to appropriate files (be sure not to overwrite existing)
+print('Saving generated WAV audio tracks.')
+seprsco_folder = 'model_gen_files/seprsco/'
+wav_folder = 'model_gen_files/wav/'
+for i in range(len(random_wavs)):
+    random_file = wav_folder+'my_wav_{}.wav'.format(i)
+    save_vgmwav(random_file, random_wavs[i])
+for i in range(len(my_wavs)):
+    my_file = wav_folder+'random_wav_{}.wav'.format(i)
+    save_vgmwav(my_file, my_wavs[i])
+
+
