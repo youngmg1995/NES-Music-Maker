@@ -4,8 +4,8 @@ Created on Wed Apr  1 13:39:24 2020
 
 @author: Mitchell
 
-model_builder.py
-~~~~~~~~~~~~~~~~
+model_utils.py
+~~~~~~~~~~~~~~
 This file contains the function `model_builder` used to construct our
 tensorflow model. This model will be trained using our NES music data and
 then used to generate our own NES music.

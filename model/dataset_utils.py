@@ -4,10 +4,35 @@ Created on Tue Mar 31 22:08:58 2020
 
 @author: Mitchell
 
-nesm_loader.py
-~~~~~~~~~~~~~~
-This file contains various functions for parsing and loading in the data
-necessary for training and validating our model.
+dataset_utils.py
+~~~~~~~~~~~~~~~~
+This file contains various functions for parsing and loading in our datasets
+necessary for training and validating our model. Functions contained include
+the following:
+    
+    1) load_training
+    - Used to load and parse our training data to format nescessary for
+    training. Does so by callng either `load_seprsco` or `reload_data`.
+    
+    2) load_seprsco
+    - Loads training data from seprsco files and parses to proper format 
+    needed for training.
+    
+    3) reload_data
+    - Loads training data from file location containing pre-parsed data
+    from previous training session. (No need to redo work)
+    
+    4) vectorizer
+    - Transforms training data to integer representations that are simpler to
+    train. Returns trasformed data as well as mappings for transformation and
+    inverse mappings.
+    
+    5) load_validation
+    - Loads validation data from seprsco files and parses to proper format.
+    
+    6) load_song
+    - Loads data from a single seprsco file and parses to proper format.
+    
 """
 
 import glob, pickle, json

@@ -6,8 +6,28 @@ Created on Wed Apr  8 21:29:05 2020
 
 training_utils.py
 ~~~~~~~~~~~~~~~~~
-This file contains functions used for training our model for generating NES
-music. 
+This file contains functions used for training our NESM models. Functions
+contained include the following:
+    
+    1) train_model
+    - Main function that trains our model using the input dataset and
+    training parameters. Does so by iteratively calling functions below and
+    printing progress along the way.
+    
+    2) train_step
+    - Implements a single training step, evaluating our model against a given
+    mini-batch and updating the model weights accordingly.
+    
+    3) validate_step
+    - Computes loss and accuracy of model against batch of validation examples.
+    
+    4) compute_loss
+    - Computes the loss/cost of our model outputs against expected outputs.
+    
+    5) get_batch
+    - Creates mini-batches and expected outputs for said mini-batches that
+    can be used for the training and validation steps.
+    
 """
 ### Imports
 import tensorflow as tf

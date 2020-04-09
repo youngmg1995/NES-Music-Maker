@@ -3,14 +3,22 @@
 Created on Wed Apr  1 17:14:19 2020
 
 @author: Mitchell
+
+nesm_generator.py
+~~~~~~~~~~~~~~~~~
+This file serves as a script for using our pre-trained model to generate
+brand new NES music tracks. To do so we first reconstruct our model using the
+file `model_builder` and the same parameters used in `model_training`. Then
+we use functions from the file `generation_utils` to have our trained model
+create entirely new and original NES music tracks.
 """
 
 # Imports
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # NOTE - nesmdb folder manually added to environment libraries 
-from model_builder import model_builder
+from dataset_utils import load_training, load_track
+from model_utils import model_builder
 from generation_utils import generate_track, generate_seprsco
-from nesm_loader import load_training, load_track
 import nesmdb
 from nesmdb.vgm.vgm_to_wav import save_vgmwav
 import tensorflow as tf
@@ -121,3 +129,6 @@ for i in range(len(my_wavs)):
     save_vgmwav(my_file, my_wavs[i])
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#----------------------------------END FILE------------------------------------
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

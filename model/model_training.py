@@ -3,13 +3,24 @@
 Created on Wed Apr  1 17:14:19 2020
 
 @author: Mitchell
+
+model_training.py
+~~~~~~~~~~~~~~~~~
+This file serves as a script for building and training our model. To do so we
+use helper functions from the files `dataset_utils`, `model_utils`, and
+`training_utils`, which respectively help us to load our data, build our
+model, and train our model. The user has the ability to specify several
+parameters at each of these stages to control the data loaded, the structure
+of the model, and the training prescription. After training is complete, the
+script also plots graphs describing the training performance and at the end
+gives the user the option of saving the model.
 """
 
 # Imports
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from model_builder import model_builder
+from dataset_utils import load_training, load_validation
+from model_utils import model_builder
 from training_utils import train_model
-from nesm_loader import load_training, load_validation
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -104,3 +115,6 @@ if save_weights:
     print('Model weights saved to files: '+checkpoint_prefix+'.*')
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#----------------------------------END FILE------------------------------------
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
