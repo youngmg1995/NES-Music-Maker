@@ -28,7 +28,7 @@ import os
 
 ### Load Mappings
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-data_foldername = '../nesmdb24_seprsco/train/'
+data_foldername = '../../nesmdb24_seprsco/train/'
 save_filename = 'transformed_dataset.json'
 dataset , labels2int_maps , int2labels_maps = load_training(data_foldername, save_filename)
 # Delete dataset to free up memory
@@ -41,8 +41,11 @@ del dataset
 model = model_builder(rnn_units = 1024,
                         input_dims = [len(v) for v in int2labels_maps], 
                         emb_output_dims = [128, 128, 32, 16],
-                        batch_size = 1
-                        )
+                        batch_size = 1,
+                        lstm_maxnorm = 4, 
+                        dense_maxnorm = 4, 
+                        lstm_dropout = .5, 
+                        dense_dropout = .5)
 
 # Reload Saved Weights
 checkpoint_dir = './training_checkpoints'
@@ -65,7 +68,7 @@ start_seed = [np.zeros((1,1),int) for i in range(5)]
 
 # Build Seed 2
 seed_length = 50
-song_filename = "../nesmdb24_seprsco/train/322_SuperMarioBros__00_01RunningAbout.seprsco.pkl"
+song_filename = "../../nesmdb24_seprsco/train/322_SuperMarioBros__00_01RunningAbout.seprsco.pkl"
 song_data = load_track(song_filename, labels2int_maps)
 random_idx = np.random.choice(song_data[0].shape[0]-seed_length)
 my_seed = [song_data[i][random_idx:random_idx+seed_length].reshape((1,seed_length)) 
@@ -120,7 +123,7 @@ for track in my_tracks:
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save our wav tracks to appropriate files (be sure not to overwrite existing)
 print('Saving generated WAV audio tracks.')
-wav_folder = 'model_gen_files/wav/'
+wav_folder = 'model_gen_files/'
 for i in range(len(random_wavs)):
     random_file = wav_folder+'my_wav_{}.wav'.format(i)
     save_vgmwav(random_file, random_wavs[i])

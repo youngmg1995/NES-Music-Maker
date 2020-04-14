@@ -30,13 +30,13 @@ import os
 ### Load Data
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # training
-training_foldername = '../nesmdb24_seprsco/train/'
+training_foldername = '../../nesmdb24_seprsco/train/'
 train_save_filename = 'transformed_dataset.json'
 dataset , labels2int_maps , int2labels_maps = \
     load_training(training_foldername, train_save_filename)
 
 # validation
-validation_foldername = '../nesmdb24_seprsco/valid/'
+validation_foldername = '../../nesmdb24_seprsco/valid/'
 val_save_filename = 'transformed_val_dataset.json'
 val_dataset = load_validation(validation_foldername,\
                               labels2int_maps, val_save_filename)
@@ -44,34 +44,51 @@ val_dataset = load_validation(validation_foldername,\
 
 ### Build Model
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-### Model Parameters
+# Model Parameters
 rnn_units = 1024
 input_dims = [len(v) for v in int2labels_maps]
 emb_output_dims = [128, 128, 32, 16]
-batch_size = 50
+batch_size = 100
+lstm_maxnorm , dense_maxnorm = None , 4
+lstm_dropout , dense_dropout = .5 , .5
 
 # Build Model
-model = model_builder(rnn_units, input_dims, emb_output_dims, batch_size)
+model = model_builder(rnn_units, input_dims, emb_output_dims, batch_size,
+                      lstm_maxnorm, dense_maxnorm, lstm_dropout, dense_dropout)
+
+
+# For loading saved model weights
+'''
+checkpoint_dir = './training_checkpoints'
+checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")
+model.load_weights(checkpoint_prefix)
+model.build(tf.TensorShape([batch_size, None, 5]))
+'''
 
 
 ### Train Model
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Training Parameters
-seq_length = 200
-epochs = 10
+seq_length = 100
+epochs = 50
 mini_batches = 100
 learning_rate_0 , learning_rate_f= .01, .005
 decay_rate = .93#(learning_rate_f/learning_rate_0)**(1/(epochs-1))
 learning_rate = lambda t: learning_rate_0 * decay_rate**t
 optimizer = tf.keras.optimizers.Adam
 
+# For intermediate model saves
+checkpoint_dir = '.\\training_checkpoints'
+checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")
+save_step = 10
 
 # Train Model
 loss_history_long , loss_history_short , accuracy_history_long ,\
 accuracy_history_short , validation_loss , validation_accuracy \
     =\
 train_model(model, dataset, val_dataset, seq_length, batch_size, epochs, 
-            mini_batches, learning_rate, optimizer)
+            mini_batches, learning_rate, optimizer,
+            checkpoint_prefix, save_step=10)
 
 
 ### Plot Training Metrics
@@ -107,7 +124,7 @@ plt.show()
 
 ### Save Model
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-save_weights = False
+save_weights = True
 if save_weights:
     checkpoint_dir = '.\\training_checkpoints'
     checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")

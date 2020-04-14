@@ -176,7 +176,7 @@ def train_step(x, y, model, loss_function, optimizer):
         loss = loss_function(y, y_hat)
         
         # Find max arguments from predictions
-        y_hat = [tf.math.argmax(y_hat[i], axis = -1) for i in range(len(y_hat))]
+        y_hat = tf.math.argmax(y_hat, axis = -1)
         
         # Compute accuracy of our predictions
         accuracy = tf.metrics.Accuracy()(y, y_hat)
@@ -226,7 +226,7 @@ def validation_step(x, y, model, loss_function):
     loss = loss_function(y, y_hat)
     
     # Find max arguments from predictions
-    y_hat = [tf.math.argmax(y_hat[i], axis = -1) for i in range(len(y_hat))]
+    y_hat = tf.math.argmax(y_hat, axis = -1)
     
     # Compute accuracy of our predictions
     accuracy = tf.metrics.Accuracy()(y, y_hat)
@@ -234,27 +234,19 @@ def validation_step(x, y, model, loss_function):
     return loss , accuracy
 
 
-def compute_loss(labels, logits, weights=None):
+def compute_loss(labels, logits):
     '''
-    This is the cost function we will be using to train our model. In essence
-    it is just the tf.keras.losses.SparseCategoricalCrossentropy cost function
-    available in tensorflow. However, we define our own function here using
-    this cost function becuase our model output contains a list of 5 feature
-    outputs. So to calculate the loss of the output we loop over each output
-    tf.Tensor and pass it to the tf.keras.losses.SparseCategoricalCrossentropy
-    function.
+    This is the cost function we will be using to train our model. It is just
+    the tf.keras.losses.SparseCategoricalCrossentropy cost function available
+    in tensorflow. 
 
     Parameters
     ----------
-    labels : list of numpy arrays
+    labels : numpy array
         Expected or True output labels for the given example(s).
-    logits : list of tf.Tensors
+    logits : tf.Tensor
         Output of our model for given example(s). Contains a distribution over
         all possible labels for each output feature.
-    weights : list of floats/ints, optional
-        Weights assigned to each feature when calculating the loss. Can be
-        used to assign higher priority to certain features being correct over
-        others. The default is None.
 
     Returns
     -------
@@ -263,22 +255,9 @@ def compute_loss(labels, logits, weights=None):
         expected output for the given example(s).
 
     '''
-    # Create array of 1's for weights if none perscribed
-    if weights==None:
-        weights = []
-        for i in range(len(labels)):
-            weights.append(1.)
     
-    # Loop over output features and calculate loss of each
-    loss = 0.
-    weight_sum = 0.
     loss_function = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-    for lb, lg, wt in zip(labels, logits, weights):
-        loss += wt * loss_function(lb,tf.math.log(lg))                                                      
-        weight_sum += wt
-        
-    # Average losses
-    loss /= weight_sum
+    loss = loss_function(labels,tf.math.log(logits))
     
     return loss
 
@@ -290,7 +269,7 @@ def get_batch(dataset, seq_length, batch_size):
 
     Parameters
     ----------
-    dataset : list of numpy arrays
+    dataset : numpy array
         The dataset we want to generate mini-batches from.
     seq_length : int
         The length of each example sequence in our mini-batch.
@@ -299,31 +278,28 @@ def get_batch(dataset, seq_length, batch_size):
 
     Returns
     -------
-    x_batch : list of numpy arrays
+    x_batch : numpy array
         Mini-batch generated from our dataset that will be evaluated by our
         model either for training or validation purposes.
-    y_batch : list of numpy arrays
+    y_batch : numpy array
         Expected or True output for our mini-batch. Loss for the mini-batch
         output will be calculated against these values. Has the same exact
         shape as the x_batch.
 
     '''
     # Length of dataset
-    M = dataset[0].shape[0] - 1
+    M = dataset.shape[0] - 1
     
     # randomly choose the starting indices for the examples in the training batch
     idx = np.random.choice(M-seq_length, batch_size)
     
-    # iterate over each feature to grab batches
-    x_batch , y_batch = [] , []
-    for data in dataset:
-          
-        input_batch = [data[i:i+seq_length] for i in idx]
-        output_batch = [data[i+1:i+seq_length+1] for i in idx]
-          
-        # x_batch, y_batch provide the true inputs and targets for network training
-        x_batch.append(np.reshape(input_batch, [batch_size, seq_length]))
-        y_batch.append(np.reshape(output_batch, [batch_size, seq_length]))
+    # Using indices, slice dataset into batches of length seq_length      
+    input_batch = [dataset[i:i+seq_length] for i in idx]
+    output_batch = [dataset[i+1:i+seq_length+1] for i in idx]
+      
+    # x_batch, y_batch provide the true inputs and targets for network training
+    x_batch = np.reshape(input_batch, [batch_size, seq_length])
+    y_batch = np.reshape(output_batch, [batch_size, seq_length])
     
     return x_batch, y_batch
 

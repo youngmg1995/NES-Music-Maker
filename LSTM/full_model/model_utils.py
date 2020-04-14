@@ -18,7 +18,10 @@ def model_builder(rnn_units,
                   input_dims,
                   emb_output_dims,
                   batch_size,
-                  dropout = None):
+                  lstm_maxnorm = None,
+                  dense_maxnorm = None,
+                  lstm_dropout = 0.0,
+                  dense_dropout = 0.0):
     '''
     Function that builds our NESM model. This particular model uses a single
     LSTM layer and 5 Dense output layers, one for each feature of our dataset.
@@ -103,34 +106,50 @@ def model_builder(rnn_units,
     
     
     # Layer 4 - LSTM: The bulk of our model an LSTM layer (RNN)
+    if lstm_maxnorm:
+        kernel_constraint = tf.keras.constraints.MaxNorm(max_value=lstm_maxnorm)
+    else:
+        kernel_constraint = None        
+    
     X = tf.keras.layers.LSTM(rnn_units,
                              return_sequences=True,
                              recurrent_initializer='glorot_uniform',
                              recurrent_activation='sigmoid',
-                             stateful=True
+                             stateful=True,
+                             kernel_constraint = kernel_constraint,
+                             dropout = lstm_dropout
                              )(X)
     
     # Layer 5 - BatchNormalization: Normalizes our activations across the
     #   mini-batch. This helps increase the learning speed.
     X = tf.keras.layers.BatchNormalization()(X)
     
-    # Optional Layer - Dropout: Ignores output activations of LSTM layer
+    # Layer 6 - Dropout: Ignores output activations of LSTM layer
     #   according to given probability.
-    if dropout:
-        X = tf.keras.layers.Dropout(dropout)(X)
+    X = tf.keras.layers.Dropout(dense_dropout)(X)
     
-    # Layer 6 - Dense: Final layer that produces our outputs. In this model
+    # Layer 7 - Dense: Final layer that produces our outputs. In this model
     #   we will concatenate 5 Dense linear layers. Each output is a
     #   distribution over the possible labels for each input feature.
+    if dense_maxnorm:
+        kernel_constraint = tf.keras.constraints.MaxNorm(max_value=dense_maxnorm)
+    else:
+        kernel_constraint = None
+    
     P1_output = tf.keras.layers.Dense(input_dims[0], activation = 'softmax',
+                                      kernel_constraint = kernel_constraint,
                                       name = 'P1')(X)
     P2_output = tf.keras.layers.Dense(input_dims[1], activation = 'softmax',
+                                      kernel_constraint = kernel_constraint,
                                        name = 'P2')(X)
     TR_output = tf.keras.layers.Dense(input_dims[2], activation = 'softmax',
+                                      kernel_constraint = kernel_constraint,
                                        name = 'TR')(X)
     NO_output = tf.keras.layers.Dense(input_dims[3], activation = 'softmax',
+                                      kernel_constraint = kernel_constraint,
                                        name = 'NO')(X)
     ST_output = tf.keras.layers.Dense(input_dims[4], activation = 'softmax',
+                                      kernel_constraint = kernel_constraint,
                                        name = 'ST')(X)
     
     # Define final model
