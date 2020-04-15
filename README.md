@@ -1,9 +1,11 @@
 # NES-Music-Maker
+
 ### Using Neural Networks to Generate 8-Bit Music for the Nintendo Entertainment System
 
 <p align="center"><img src="/xstatic/explosion8bit4-8.2.2017.jpg" width=800></p>
 
 ## Overview
+
 In this project we attempt to create our own original NES soundtracks with the help of neural networks. The music we generate will both mimic the NES soundtracks we train against, and will be formatted properly for conversion and play on a standard Nintendo Entertainment System audio synthesizer. This means our music will not only sound like 8-bit video game music, but will actually be 8-bit video game music!!!
 
 In order to accomplish this task we did the following:
@@ -14,6 +16,7 @@ In order to accomplish this task we did the following:
 4) Generated new NESM soundtracks using our trained models and an initialization seed
 
 ## NESM Dataset
+
 To train and validate all our models, we will be using a dataset of 5,278 songs from 397 NES games. This dataset comes from [The NES Music Database](https://github.com/chrisdonahue/nesmdb) which has done a majority of the work compiling and formatting the NESM soundtracks in a manner that is easy to analyse and convert. In addition to the music files, this database also offers a python library filled with functions for converting the soundtracks to other formats useful for listening to the music and playing it on the NES audio synth. Since this library is written in Python 2.X and we use Python 3.X, included in our repository is a modified subset of Chris's nesmdb package that we use for converting to the formats we need.
 
 The NESMDB offers numerous formatts for the NES music, each with their own strangths and weaknesses for modeling against. For our purposes, we chose to use the Separated Score (seprsco) format. This format is lossy and does not include all the performance features of the NES music, but it does include all the note information for the music and is easier to parse given its simple array format.
@@ -27,9 +30,10 @@ Excluding the playback channel, the NES audio synth has 4 instrument voices: 2 p
 While this dataset is already very structured, we further parse and format our dataset using functions in the included 'dataset_utils.py' files. These functions load in the seprsco formatted files, vectorize them so all notes are integer representations from a connected range, [0, 1, ..., N], and reshape our dataset to fit the input specifications of each model.
 
 ## Model Designs
+
 To generate our NES soundtracks we designed and tested two different classes of neural network models:
 
-1) **LSTM** - Long Short Term Memory
+1) **LSTM** - Long Short-Term Memory
 2) **VAE** - Variational Autoencoder
 
 For each model type we contructed two different model designs:
@@ -45,7 +49,13 @@ Below we go into more detail on each model class regarding its structure and why
 
 ### LSTM
 
+LSTM or Long Short-Term Memory is a type of recurrent neural network (RNN). LSTMs are the prototypical network used for modeling and generating sequential data, such as found in text, music, and video; but in general, RNN's as a class are effective at modeling time-series data. What makes RNNs so well suited for modeling temporal sequences is their ability to store an internal state in memory. This internal state can then be passed as an input, along with a singular timestep from a training example, to help predict the next value in our temporal sequence. In otherwords, whereas most neural networks are strictly feedforward structures, RNNs in contrast leverage feedback connections. This allows RNNs to use information about past timesteps to make a more informed prediction on the current timestep.
+
+What makes LSTMs in particular such an effective form of these reccurent structures is their ability to learn long-term dependencies. Standard RNN models typically don't have the ability to look back more than a few timesteps because in practice the suffer from the vanishing gradient problem. The vanishing gradient problem is an issue characterized by increasingly diminishing partial derivatives  from layer to layer in a neural network during standard backpropogation training. In essence, this makes our RNNs difficult to train because information is inefficiently passed to earlier timesteps of our model and results in smaller corections to these parameters.
+
 <p align="center"><img src="/xstatic/LSTM.png" width=600></p>
+
+LSTM networks were specifically designed to overcome the vanishing gradient problem common in these models. While not completely foolproof, LSTMs tend to allow for a more unchanged flow of gradients during backpropogation. This is acheived in using a combination of 
 
 ### VAE
 
