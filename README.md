@@ -24,6 +24,20 @@ Excluding the playback channel, the NES audio synth has 4 instrument voices: 2 p
 While this dataset is already very structured, we further parse and format our dataset using functions in the included 'dataset_utils.py' files. These functions load in the seprsco formatted files, vectorize them so all notes are integer representations from a connected range, [0, 1, ..., N], and reshape our dataset to fit the input specifications of each model.
 
 ## Model Designs
+To generate our NES soundtracks we designed and tested two different classes of neural network models:
+1) **LSTM** - Long Short Term Memory
+2) **VAE** - Variational Autoencoder
+For each model type we contructed two different model designs:
+1) **Reduced Model** - Analyses only the 1st melodic voice (P1) of each NES track
+2) **Full Model** - Analyses all 4 intrument voices (P1, P2, TR, NO) of each NES track
+Most generative models for music out on the internet focus on generating a single melodic voice. This is a much simpler problem to model since it reduces dimensionality of our inputs/outputs. Illustrating this point using the NES music, the possible combinations of notes for just the P1 voice is only 77, whereas the possible combination of notes for all 4 voices (P1, P2, TR, NO) combined is 77 X 77 X 89 X 17 = 8,970,577. 
+As such, we decided to follow suite with the rest of the community and first test each model class on a reduced model that only analyses the first melodic voice of each NES track (P1). Using the reduced model we were able to more easily optimize the training prescription and hyperparemeters for each model class. Once comfortable with the reduced model, we then expanded our model classes to the much more difficult probelm of analysing all 4 instrument voices and generating complete NES soundtracks.
+Below we go into more detail on each model class regarding its structure and why it was chosen for this problem.
+
+### LSTM
+
+
+### VAE
 
 
 ## Training
