@@ -41,7 +41,7 @@ For each model type we contructed two different model designs:
 1) **Reduced Model** - Analyses only the 1st melodic voice (P1) of each NES track
 2) **Full Model** - Analyses all 4 intrument voices (P1, P2, TR, NO) of each NES track
 
-Most generative models for music out on the internet focus on generating a single melodic voice (Ex. classical piano pieces). This is a much simpler problem to model since it reduces the dimensionality of our inputs/outputs. Illustrating this point using NES music, the possible combinations of notes for just the P1 voice is only 77, whereas the possible combinations of notes for all 4 voices (P1, P2, TR, NO) combined is 77 X 77 X 89 X 17 = 8,970,577.
+Most generative models for music out on the internet focus on generating a single melodic voice (Ex. classical piano pieces). This is a much simpler problem to model since it reduces the dimensionality of our inputs/outputs. Illustrating this point using NES music, the possible combinations of notes for just the P1 voice is only 77, whereas the possible combinations of notes for all 4 voices (P1, P2, TR, NO) combined is 77 x 77 x 89 x 17 = 8,970,577.
 
 As such, we decided to follow suite with the rest of the community and first test each model class on a reduced model that only analyses the first melodic voice of each NES track (P1). Using the reduced model allowed us to more easily optimize the training prescription and hyperparemeters for each model class. Once comfortable with the reduced model, we then expanded our model classes to the much more difficult problem of analysing all 4 instrument voices and generating complete NES soundtracks.
 
@@ -67,15 +67,19 @@ In addition to the above high level structure, we also leveraged more advanced t
 
 ### VAE
 
-VAEs or Variational Autoencoders are a specific subset of the autoencoder class of neural networks. Autoencoders are a type of unsupervised neural network that learns patterns and characteristics of a given dataset through a representation in a lower dimensional space. Typical this means autoencoders consist of two separate stages, an encoder or compressive stage and a decoder or decompressive stage. The encoder stage maps the inputs to some lower dimensional latent space while the decoder stage recontructs the initial input back from its compressed representation. These types of models are generally used for extracting emergent or un-observable characteristics in our data or for generating new data for training other models.
+VAEs or Variational Autoencoders are a specific subset of the autoencoder class of neural networks. Autoencoders are a type of unsupervised neural network that learns patterns and characteristics of a given dataset through a representation in a lower dimensional space. Typical this means autoencoders consist of two separate stages, an encoder or compressive stage and a decoder or decompressive stage. The encoder stage maps the inputs to some lower dimensional latent space while the decoder stage recontructs the initial input back from its compressed representation. These types of models are generally used for extracting un-observable characteristics in our data or for generating new data for training other models, most commonly for computer vision.
 
 Like general autoencoders, VAEs learn a compressed representation of our input data within a latent space and reconstruct the input as closely as possible. However, what makes VAEs particularly unique is their probabilistic nature. Instead of just mapping our inputs to a vanilla vector space, VAEs map our inputs to a space of probabilistic variables. In other words, our VAE is not learning a lower dimensional representation of our inputs, instead it is learning the distribution over our latent space from which to sample our latent vectors. In practice, this is acheived by encoding our inputs to a vector of means and standard deviations that we force to follow a Gaussian distribution using a regularization term in our loss function. We then use a reparameterization to convert these parameters to a latent vector by sampling from a normal distribution, scaling the result using our standard deviations, and adding back the mean.
 
 <p align="center"><img src="/xstatic/VAE.png" width=600></p>
 
+At this point you might be thinking, "How is a VAE going to model music?". It is a good question to ask, since VAEs are generally used for problems related to computer vision and image processing. However, [others](https://www.youtube.com/watch?v=UWxfnNXlVy8) have succesfully used VAEs to generate music by representing the music in a format akin to an image. For instance, in the linked work by CodeParade, each song is represented as a piano roll, which when divided into measures of 96 beats each with 96 possible notes essentially becomes a visual repesentation of the song. Now instead of a temporal sequence of notes, each song is represented as a set of 16 sequential 96 x 96 images. Using my limited understanding of music theory, this representation could make sense for our NES music, since the music is very structured and repetitive where any given not depends more on the overal melody of the measures rather than the previous note or two.
 
+Leveraging this framework, we decided to create our VAE models using the Keras library, implemented uing a Tensorflow backend in a python environment same as with the LSTM models. However, Keras does not include pre-built VAE models/layers, so we decided to construct our encoder and decoder sections using a deep network of fully connected layers. In some layers, we apply the same network recursively over each of the measures of our soundtracks to try and caprture the sequential nature of the data. Below is a more detailed list of the models layers:
 
-Like with the LSTMs, we decided to crete our VAE models using the Keras library, implemented uing a Tensorflow backend in a python environment. However, Keras does not include pre-built VAE models/layers, so we decided to contruct our 
+1)
+2)
+3)
 
 ## Training
 
