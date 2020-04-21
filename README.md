@@ -61,7 +61,7 @@ To create our LSTM models for this project we the pre-built LSTM layers in Keras
 
 1) Layer 1 - Embedding: Maps our integer inputs for each instrument voice to dense vectors of chosen dimensionality
 2) Layer 2 - LSTM: Bulk of our network, a recurrent neural structure with a sigmoid activation and chosen units
-3) Layer 3: Dense: Typical fully connected layer with a softmax activation used to produce output distribution
+3) Layer 3 - Dense: Typical fully connected layer with a softmax activation used to produce output distribution
 
 In addition to the above high level structure, we also leveraged more advanced techniques sprinkled throughout our network to optimize its performance and imporve training. These include but are not limited to dropout, max-norm weight contraint, batch normalization, etc.
 
@@ -73,16 +73,29 @@ Like general autoencoders, VAEs learn a compressed representation of our input d
 
 <p align="center"><img src="/xstatic/VAE.png" width=600></p>
 
-At this point you might be thinking, "How is a VAE going to model music?". It is a good question to ask, since VAEs are generally used for problems related to computer vision and image processing. However, [others](https://www.youtube.com/watch?v=UWxfnNXlVy8) have succesfully used VAEs to generate music by representing the music in a format akin to an image. For instance, in the linked work by CodeParade, each song is represented as a piano roll, which when divided into measures of 96 beats each with 96 possible notes essentially becomes a visual repesentation of the song. Now instead of a temporal sequence of notes, each song is represented as a set of 16 sequential 96 x 96 images. Using my limited understanding of music theory, this representation could make sense for our NES music, since the music is very structured and repetitive where any given not depends more on the overal melody of the measures rather than the previous note or two.
+At this point you might be thinking, "How is a VAE going to model music?". It is a good question to ask, since VAEs are generally used for problems related to computer vision and image processing. However, [others](https://www.youtube.com/watch?v=UWxfnNXlVy8) have succesfully used VAEs to generate music by representing the music in a format akin to an image. For instance, in the linked work by CodeParade, each song is represented as a piano roll, which when divided into measures of 96 beats each with 96 possible notes essentially becomes a visual repesentation of the song. Now instead of a temporal sequence of notes, each song is represented as a set of 16 sequential 96 x 96 images. Using my limited understanding of music theory, this representation could make sense for our NES music, since the music is very structured and repetitive where any given note depends more on the overal melody of the measures rather than the previous note or two.
 
 Leveraging this framework, we decided to create our VAE models using the Keras library, implemented uing a Tensorflow backend in a python environment same as with the LSTM models. However, Keras does not include pre-built VAE models/layers, so we decided to construct our encoder and decoder sections using a deep network of fully connected layers. In some layers, we apply the same network recursively over each of the measures of our soundtracks to try and caprture the sequential nature of the data. Below is a more detailed list of the models layers:
 
-1)
-2)
-3)
+1) Stage 1 - Encoder: Compresses inputs down to latent space of 2 vectors for sampling means and stds. Typically used latent dimension of ~100.
+    - Layer 1: Time Distributed (over each measure of input track) Dense layer of about ~2000 nodes nodes with ReLU activations
+    - Layer 2: Time Distributed Dense layer of about ~200 nodes with ReLU activations
+    - Layer 3: Dense layer of about ~1600 nodes with ReLU activations which removes temporal dimension along measures
+    - Layer 4: 2 Independent Dense layers of about ~100 nodes (our latent dim size) with identity activations
+2) Stage 2 - Reparameterizer: Samples from normal distributions over latent variables to produce our final compressed representation.
+3) Stage 3 - Decoder: Decompresses our latent representation back to original shape attemping to reproduce the original input as closely as possible.
+    - Layer 1: Dense layer of about ~1600 nodes with ReLU activationsTime Distributed (over each measure of input track) Dense layer of about ~2000 nodes nodes with ReLU activations
+    - Layer 2: Dense layer of about ~1600 nodes with ReLU activations which also reshapes data into temporal measures
+    - Layer 3: Time Distributed Dense layer of about ~2000 nodes with ReLU activations
+    - Layer 4: 1-4 Independent Dense layers of about ~10000 nodes (size of each meaure image) with sigmoid activations which rebuilds each of our input features
 
 ## Training
 
+Both our LSTM and VAE models, reduced and full models, were trained in similar manners using the built in Model.fit method intrinsic to every Keras model. For training each model we used the seprsco tracks from NESMDB which was comprised of a training dataset of 4,502 NES soundtracks and a validation dataset of 403 NES soundtracks. However, recall that the inputs for each model were different, so the training and validation sets were also slightly different between the models, despite being derived from the same set of tracks. 
+
+Since our LSTM models could take inputs of variable length, we decided to combine all the tracks for each dataset into a single long track from which to sample batches from. This means our training dataset was essentially a single track of ~3.5M notes from our 4,502 training songs, and likewise the validation set was a single track of ~268K notes from our 403 validation songs. Additionally, when combining these tracks we added our own unique note value between tracks to indicate the start/end of each song; this was done to help our model learn how songs start and end. Finally, when training the model we sampled sequences from these long tracks to create our training and validation batches. Typically we used sequence lengths in the 100-300 range since our PC/model could not handle longer sequences in memory and any thing shorter negatively affected the quality of the training.
+
+As mentioned earlier, our VAE models take inputs with a well defined shape and length. As such, in creating the training/validation datasets for this model we had to parse each song for valid segments with the given length. Using samples with 8 measures comprised of 96 notes each (for a total length of 768 notes), this yielded 
 
 ## Soundtrack Generation
 
