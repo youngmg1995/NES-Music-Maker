@@ -97,14 +97,30 @@ Both our LSTM and VAE models, reduced and full models, were trained in similar m
 
 Since our LSTM models could take inputs of variable length, we decided to combine all the tracks for each dataset into a single long track from which to sample batches from. This means our training dataset was essentially a single track of ~3.5M notes from our 4,502 training songs, and likewise the validation set was a single track of ~268K notes from our 403 validation songs. Additionally, when combining these tracks we added our own unique note value between tracks to indicate the start/end of each song; this was done to help our model learn how songs start and end. Finally, when training the model we sampled sequences from these long tracks to create our training and validation batches. Typically we used sequence lengths in the 100-300 range since our PC/model could not handle longer sequences in memory and any thing shorter negatively affected the quality of the training.
 
-As mentioned earlier, our VAE models take inputs with a well defined shape and length. As such, in creating the training/validation datasets for this model we had to parse each song for valid segments with the given length. Using samples with 8 measures comprised of 96 notes each (for a total length of 768 notes), this yielded 2766 valid samples for our training dataset and 190 for our validation dataset. Finally, when training the model we would sample our batches from each of thes datasets. For the full model, we also contructed generators for each dataset that would help produce the images for each batch, which take up a lot of memory, without storing the whole dataset in memory.
+As mentioned earlier, our VAE models take inputs with a well defined shape and length. As such, in creating the training/validation datasets for this model we had to parse each song for valid segments with the given length. Using samples with 8 measures comprised of 96 notes each (for a total length of 768 notes which is right at the average track length ~800 notes), this yielded 2766 valid samples for our training dataset and 190 for our validation dataset. Finally, when training the model we would sample our batches from each of thes datasets. For the full model, we also contructed generators for each dataset that would help produce the images for each batch, which take up a lot of memory, without storing the whole dataset in memory.
 
-
+The optimized hyperparameters for our training perscriptions were worked out during experimentation primarily with the reduced models, but also to some degree with the full models. In general, we trained our models using batches of 100-300 samples per epoch and a complete training session was anywhere between 2,000 and 5,000 epochs. We found that using the built in Keras Adam optimizer worked best for adjusting the weights of our models, typically using an initial learning rate of .001 which exponentially decayed over the course of the training epochs. And lastly, for our LSTM models we used Kera's built in sparse categorical loss function, while for the VAE models we contructed unique loss functions that were a combination of a mean squared loss (measuring the difference between the input and output) and redularization term that forced our latent variables to be normally distributed. 
 
 ## Soundtrack Generation
 
+Once our models were designed and trained, we finally moved on to the fun part of the project, using the models to actually create our own NES music. For each model type we had to handle the specifics of the song generation differently, since each model took different inputs/outputs, but in general the overall process was the same, as shown below:
+
+1) Step 1: Reinitiate our trained model
+2) Step 2: Create a starting point for the songs we will generate
+        - LSTM: use the unique start/end identifier or a chosen segment of a song to be the starting point for each track
+        - VAE: sample from our latent space or set the values for each latent variable to be used as the compressed representation of each track we want to generate
+3) Step 3: Feed the starting points into our models to generate new NES tracks
+        - LSTM: iteratively feed each note into the model and take the output to be the next note in the generated track
+        - VAE: decode each of the latent vectors to generate/decompress each track
+4) Step 4: Use custom built functions to extract valid NESM seprsco formatted tracks form what we generated
+5) Step 5 (Optional): Use functions from the nesmdb library to convert the generated seprsco tracks to WAV format for listening to or to VGM for playing on NES synthasizers.
+
+For the LSTM models, we essentially generate a single output track using an initial seed note(s) as a starting point. To do this, the models iteratively takes the current note in the sequence as an input, and predicts with some probabilty what the next note in the sequence should be. We then sample from this output distribution to choose our next note/input, and repeat the process for a set track length or until a set number of tracks are generated (which means our model outputs that number of start/end identifiers). Finally, we extract the valid songs from this single track by identifying the segments between start/end identifiers and reformatting the segments to valid serpsco, WAV, or VGM files.
+
+In comparison, generating new tracks using the VAE is much simpler since the output of these models is a valid track with a fixed length. To generate a song using these models, we simply choose or randomly sample a compressed representation from our latent space and then decompress it to a full length track using just the decoder stage of the model. Personally, I prefer generating tracks using these models because the process is much simpler and reproduceable. The generative process with the LSTMs is essentially random, whereas with the VAEs I can store the latent vector used to make a song I liked and even adjust the latent values to fine-tune the song.
 
 ## Results
+
 
 
 ## Acknowledgements 
