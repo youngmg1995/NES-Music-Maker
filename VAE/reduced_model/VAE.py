@@ -61,15 +61,14 @@ tensorflow.keras.Models. The methods contained include the following:
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras import Input
-from tensorflow.keras.layers import Embedding, Reshape, TimeDistributed, Dense,\
-    Flatten, Lambda, BatchNormalization, Activation, Dropout
+from tensorflow.keras.layers import Reshape, TimeDistributed, Dense, Flatten,\
+    Lambda, BatchNormalization, Activation, Dropout
     
 
 class VAE(tf.keras.Model):
     def __init__(self,
                  latent_dim,
                  input_dim,
-                 embed_dim,
                  measures,
                  measure_len,
                  dropout = 0.0,
@@ -123,7 +122,6 @@ class VAE(tf.keras.Model):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.latent_dim = latent_dim
         self.input_dim = input_dim
-        self.embed_dim = embed_dim
         self.measures = measures
         self.measure_len = measure_len
         self.dropout = dropout
@@ -138,11 +136,9 @@ class VAE(tf.keras.Model):
         else:
             kernel_constraint = None
         
-        x_in = Input(shape=(measures,measure_len))
+        x_in = Input(shape=(measures,measure_len, input_dim))
         
-        x = Embedding(input_dim, embed_dim)(x_in)
-        
-        x = Reshape((measures, measure_len*embed_dim))(x)
+        x = Reshape((measures, measure_len*input_dim))(x_in)
         
         x = TimeDistributed(Dense(2000, activation = 'relu',
                                   kernel_constraint = kernel_constraint
@@ -208,8 +204,9 @@ class VAE(tf.keras.Model):
         '''
         Evaluates input sample(s) against full VAE model.
         '''
-        z_mean, z_log_sigma = self.encoder(inputs)
-        z = self.reparameterize([z_mean, z_log_sigma])
+        z_mean, z_log_sigma_sq = self.encoder(inputs)
+        self.z = z_mean, z_log_sigma_sq
+        z = self.reparameterize([z_mean, z_log_sigma_sq])
         y = self.decoder(z)
         return y
     
@@ -249,9 +246,8 @@ class VAE(tf.keras.Model):
         Computes the loss between inputs and reproduced outputs of
         our VAE model.
         '''
-        z_mean , z_log_sigma = self.encoder(x)
-        #y = self.decoder(self.reparameterize([z_mean , z_log_sigma]))
-        xent_loss = tf.keras.losses.SparseCategoricalCrossentropy()(x, y)
-        kl_loss = - self.vae_b2 * K.mean(1 + z_log_sigma - K.square(z_mean) \
-                                         - K.exp(z_log_sigma), axis=None)
+        z_mean , z_log_sigma_sq = self.z
+        xent_loss = tf.keras.losses.MeanSquaredError()(x, y)
+        kl_loss = - self.vae_b2 * K.mean(1 + z_log_sigma_sq - K.square(z_mean)\
+                                         - K.exp(z_log_sigma_sq), axis=None)
         return xent_loss + kl_loss

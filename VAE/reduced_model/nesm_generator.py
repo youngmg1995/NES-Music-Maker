@@ -20,7 +20,8 @@ have our trained model create entirely new and original NES music.
 # NOTE - nesmdb folder manually added to environment libraries 
 from dataset_utils import load_training
 from VAE import VAE
-from generation_utils import generate_seprsco, latent_SVD
+from generation_utils import generate_seprsco, latent_SVD, get_latent_vecs,\
+    plot_track, filter_tracks
 import nesmdb
 from nesmdb.vgm.vgm_to_wav import save_vgmwav
 import tensorflow as tf
@@ -46,8 +47,7 @@ dataset , labels2int_map , int2labels_map = \
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### Model Parameters
 latent_dim = 124
-input_dim = len(int2labels_map)
-embed_dim = 96
+input_dim = len(int2labels_map) - 1
 dropout = .1
 maxnorm = None
 vae_b1 , vae_b2 = .02 , .1
@@ -55,14 +55,14 @@ vae_b1 , vae_b2 = .02 , .1
 print('Reinitiating VAE Model')
 
 # Build Model
-model = VAE(latent_dim, input_dim, embed_dim, measures, measure_len, dropout, 
+model = VAE(latent_dim, input_dim, measures, measure_len, dropout, 
             maxnorm, vae_b1 , vae_b2)
 
 # Reload Saved Weights
 checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")
 model.load_weights(checkpoint_prefix)
-model.build(tf.TensorShape([None, measures, measure_len]))
+model.build(tf.TensorShape([None, measures, measure_len, ]))
 
 # Print Summary of Model
 model.summary()
@@ -74,12 +74,14 @@ model.summary()
 # of our latent space
 
 # Parameters for sampling
-num_songs = 3
+num_songs = 10
 
 print('Generating Latent Samples to Generate {} New Tracks'.format(num_songs))
 
 # Grab distributions of dataset over latent space
-latent_vecs = model.reparameterize(model.encoder(dataset))
+# Hoave to run in batches due to size of the dataset
+batch_size = 300
+latent_vecs = get_latent_vecs(model, dataset, batch_size)
 
 # Sample from normal distribution
 rand_vecs = np.random.normal(0.0, 1.0, (num_songs, latent_dim))
@@ -94,17 +96,27 @@ sample_vecs = latent_SVD(latent_vecs, rand_vecs, plot_eigenvalues)
 # Create new seprsco tracks using our model and the random samples
 # Seprsco files can later be converted to valid NES music format
 
+# Parameters for track generation (specifically filtering)
+p_min = .5
+
 print('Generating New Tracks from Latent Samples')
 
 # Decode samples using VAE
 decoded_tracks = model.decoder(sample_vecs)
 
-# Pull most likely note for each step in track
-decoded_tracks = tf.math.argmax(decoded_tracks, axis=-1).numpy()
+# Plot first decoded track
+print("Example Model Generated Track")
+plot_track(decoded_tracks[0])
 
-print('Converting Model Output to Seprsco')
+# Filter Track
+decoded_tracks = filter_tracks(decoded_tracks, p_min)
+
+# Plot first filtered track
+print("Example Filtered Track")
+plot_track(decoded_tracks[0])
 
 # Convert tracks to seprsco format
+print('Converting Model Output to Seprsco')
 seprsco_tracks = generate_seprsco(decoded_tracks, int2labels_map)
 
 
@@ -112,7 +124,7 @@ seprsco_tracks = generate_seprsco(decoded_tracks, int2labels_map)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Convert seprsco tracks to WAV files so we can listen!!!
 
-print('Converting Seprsco WAV Audio')
+print('Converting Seprsco to WAV Audio')
 wav_tracks = []
 for track in seprsco_tracks:
     wav = nesmdb.convert.seprsco_to_wav(track)
@@ -125,7 +137,7 @@ for track in seprsco_tracks:
 # Also save latent variables so we can reproduce songs we like
 
 # Save WAV tracks
-save_wav = True
+save_wav = False
 if save_wav:
     print('Saving Generated WAV Audio Tracks')
     wav_folder = 'model_gen_files/'
@@ -134,7 +146,7 @@ if save_wav:
         save_vgmwav(wav_file, wav_tracks[i])
 
 # Save Latent Variables
-save_latent_var = True
+save_latent_var = False
 if save_latent_var:
     print('Saving Latent Variables for Generated Tracks')
     latent_filename = os.path.join(wav_folder, "latent_variables.json")

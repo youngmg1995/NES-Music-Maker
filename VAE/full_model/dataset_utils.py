@@ -37,6 +37,7 @@ Functions contained include the following:
     
 """
 
+import tensorflow as tf
 import glob, pickle, json
 import numpy as np
 import os, random

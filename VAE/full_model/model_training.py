@@ -20,7 +20,7 @@ during training and saves the final model.
 # Imports
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from dataset_utils import load_training, load_validation
-from VAE import VAE
+from VAE import VAE, DataSequence
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,7 +29,8 @@ import os, time, json
 
 ### Load Data
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Parameters for shape of dataset (note these are also used for model def.)
+# Parameters for shape of dataset (note these are also used for model def. and
+# training.)
 measures = 8
 measure_len = 96
 
@@ -52,16 +53,16 @@ val_dataset = load_validation(validation_foldername,\
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### Model Parameters
 latent_dim = 124
-input_dims = [mapping.shape[0] for mapping in int2labels_map]
-embed_dims = [32, 32, 32, 8]
+input_dims = [mapping.shape[0]-1 for mapping in int2labels_map]
 dropout = .1
 maxnorm = None
 vae_b1 , vae_b2 = .02 , .1
 
 # Build Model
-model = VAE(latent_dim, input_dims, embed_dims, measures, measure_len, dropout, 
+model = VAE(latent_dim, input_dims, measures, measure_len, dropout, 
             maxnorm, vae_b1 , vae_b2)
-model.build([tf.TensorShape([None, measures, measure_len]) for i in range(4)])
+model.build([tf.TensorShape([None, measures, measure_len, input_dims[i]])
+             for i in range(4)])
 model.summary()
 
 
@@ -86,18 +87,19 @@ optimizer = tf.keras.optimizers.Adam()
 # Define callbacks
 callbacks = [lr_schedule]
 
+# Keras Sequences for Datasets (need to use since one-hot datasets too
+# large for storing in memory)
+training_seq = DataSequence(dataset, int2labels_map, batch_size)
+validation_seq = DataSequence(val_dataset, int2labels_map, batch_size)
+
 # Compile Model
 model.compile(optimizer = optimizer,
-              loss = cost_function,
-              metrics = ['sparse_categorical_accuracy'])
+              loss = cost_function)
 
 # Train model
 tic = time.perf_counter()
-history = model.fit(dataset, dataset,
-                    batch_size = batch_size,
-                    epochs = epochs,
-                    callbacks = callbacks,
-                    validation_data = (val_dataset, val_dataset))
+history = model.fit_generator(generator = training_seq,
+                              epochs = epochs)
 toc = time.perf_counter()
 print(f"Trained Model in {(toc - tic)/60:0.1f} minutes")
 
@@ -164,7 +166,7 @@ plt.show()
 ### Save Model and History
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Save Model Weights
-save_model = True
+save_model = False
 if save_model:
     checkpoint_dir = '.\\training_checkpoints'
     checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")
@@ -172,7 +174,7 @@ if save_model:
     print('Model weights saved to files: '+checkpoint_prefix+'.*')
     
 # Save Training History
-save_history = True
+save_history = False
 if save_history:
     checkpoint_dir = '.\\training_checkpoints'
     history_filename = os.path.join(checkpoint_dir, "training_history.json")

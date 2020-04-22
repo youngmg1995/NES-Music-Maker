@@ -41,6 +41,7 @@ Functions contained include the following:
     
 """
 
+import tensorflow as tf
 import glob, pickle, json
 import numpy as np
 import os, random
@@ -195,6 +196,12 @@ def load_seprsco(training_foldername, save_filename=None,
     
     # Vectorize the dataset
     dataset , labels2int_map , int2labels_map = vectorizer(dataset, measures, measure_len)
+    
+    # One-Hot Encode Data
+    dataset = tf.one_hot(dataset, int2labels_map.shape[0]).numpy()
+        
+    # Remove Any 0 Notes
+    dataset = dataset[:,:,:,1:]
     
     # Save transformed dataset and mappings if filename given
     if save_filename:
@@ -398,7 +405,12 @@ def load_validation(validation_folder, labels2int_map, save_filename=None,
     
         # Convert list to single numpy array
         val_dataset = np.array(val_dataset)
-            
+        
+        # One-Hot Encode Data
+        val_dataset = tf.one_hot(val_dataset, len(labels2int_map)).numpy()
+        
+        # Remove Any 0 Notes
+        val_dataset = val_dataset[:,:,:,1:]
         
         # Save transformed dataset if filename given
         if save_filename:

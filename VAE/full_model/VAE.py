@@ -56,14 +56,15 @@ tensorflow.keras.Models. The methods contained include the following:
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras import Input
-from tensorflow.keras.layers import Embedding, Reshape, TimeDistributed, Dense,\
-    Flatten, Lambda, BatchNormalization, Activation, Dropout, Concatenate
+from tensorflow.keras.layers import Reshape, TimeDistributed, Dense, Flatten,\
+    Lambda, BatchNormalization, Activation, Dropout, Concatenate
+from tensorflow.keras.utils import Sequence
+import numpy as np
 
 class VAE(tf.keras.Model):
     def __init__(self,
                  latent_dim,
                  input_dims,
-                 embed_dims,
                  measures,
                  measure_len,
                  dropout = 0.0,
@@ -117,7 +118,6 @@ class VAE(tf.keras.Model):
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.latent_dim = latent_dim
         self.input_dims = input_dims
-        self.embed_dims = embed_dims
         self.measures = measures
         self.measure_len = measure_len
         self.dropout = dropout
@@ -132,22 +132,16 @@ class VAE(tf.keras.Model):
         else:
             kernel_constraint = None
         
-        P1_in = Input(shape=(measures, measure_len))
-        P2_in = Input(shape=(measures, measure_len))
-        TR_in = Input(shape=(measures, measure_len))
-        NO_in = Input(shape=(measures, measure_len))
+        P1_in = Input(shape=(measures, measure_len, input_dims[0]))
+        P2_in = Input(shape=(measures, measure_len, input_dims[1]))
+        TR_in = Input(shape=(measures, measure_len, input_dims[2]))
+        NO_in = Input(shape=(measures, measure_len, input_dims[3]))
         
-        Emb_P = Embedding(max(input_dims[0], input_dims[1]), embed_dims[0])
-        Emb_TR = Embedding(input_dims[2], embed_dims[2])
-        Emb_NO = Embedding(input_dims[3], embed_dims[3])
+        x = Concatenate()([P1_in, P2_in, TR_in, NO_in])
         
-        P1, P2, TR, NO = Emb_P(P1_in), Emb_P(P2_in), Emb_TR(TR_in), Emb_NO(NO_in)
+        x = Reshape((measures, measure_len*sum(input_dims)))(x)
         
-        x = Concatenate()([P1, P2, TR, NO])
-        
-        x = Reshape((measures, measure_len*sum(embed_dims)))(x)
-        
-        x = TimeDistributed(Dense(1600, kernel_constraint = kernel_constraint))(x)
+        x = TimeDistributed(Dense(500, kernel_constraint = kernel_constraint))(x)
         x = TimeDistributed(BatchNormalization())(x)
         x = Activation('relu')(x)
         if dropout > 0:
@@ -203,7 +197,7 @@ class VAE(tf.keras.Model):
         if dropout > 0:
             x = Dropout(dropout)(x)
         
-        x = TimeDistributed(Dense(1600, kernel_constraint = kernel_constraint))(x)
+        x = TimeDistributed(Dense(500, kernel_constraint = kernel_constraint))(x)
         x = TimeDistributed(BatchNormalization())(x)
         x = Activation('relu')(x)
         if dropout > 0:
@@ -270,7 +264,33 @@ class VAE(tf.keras.Model):
         our VAE model.
         '''
         z_mean , z_log_sigma_sq = self.z
-        xent_loss = tf.keras.losses.SparseCategoricalCrossentropy()(x, y)
+        xent_loss = tf.keras.losses.MeanSquaredError()(x, y)
         kl_loss = - self.vae_b2 * K.mean(1 + z_log_sigma_sq - K.square(z_mean)\
                                          - K.exp(z_log_sigma_sq), axis=None)
         return xent_loss + kl_loss/4
+    
+
+class DataSequence(Sequence):
+
+        def __init__(self, dataset, int2labels_maps, batch_size):
+            self.dataset = dataset
+            self.int2labels_maps = int2labels_maps
+            self.batch_size = batch_size
+            self.batch_indxs = np.arange(0, dataset[0].shape[0], batch_size)
+            if self.batch_indxs[-1] != dataset[0].shape[0]:
+                self.batch_indxs = np.concatenate((
+                    self.batch_indxs, np.array([self.dataset[0].shape[0]])
+                    ))
+
+        def __len__(self):
+            return tf.math.ceil(self.dataset[0].shape[0] / self.batch_size)
+
+        def __getitem__(self, idx):
+            n = len(self.dataset)
+            batch_x = [self.dataset[i][self.batch_indxs[i]:self.batch_indxs[i+1]]
+                       for i in range(n)]
+            batch_x = [tf.one_hot(batch_x[i], self.int2labels_maps[i].shape[0])
+                       for i in range(n)]
+            batch_x = [batch_x[i][:,:,:,1:] for i in range(n)]
+
+            return batch_x, batch_x

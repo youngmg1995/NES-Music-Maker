@@ -53,39 +53,38 @@ val_dataset = load_validation(validation_foldername,\
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ### Model Parameters
 latent_dim = 124
-input_dim = len(int2labels_map)
-embed_dim = 96
+input_dim = len(int2labels_map) - 1
 dropout = .1
 maxnorm = None
-vae_b1 , vae_b2 = .02 , .1
+vae_b1 , vae_b2 = .01, .5#.02 , .1
 
 # Build Model
-model = VAE(latent_dim, input_dim, embed_dim, measures, measure_len, dropout, 
+model = VAE(latent_dim, input_dim, measures, measure_len, dropout, 
             maxnorm, vae_b1 , vae_b2)
-model.build(tf.TensorShape([None, measures, measure_len]))
+model.build(tf.TensorShape([None, measures, measure_len, input_dim]))
 model.summary()
 
 
 ### Train Model
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Training Parameters
-batch_size = 100
+batch_size = 300
 epochs = 10
 
 # Cost Function
 cost_function = model.vae_loss
 
 # Optimizer and learning_rate schedule
-lr_0 = .0001
+lr_0 = .001
 decay_rate = .998
-lr_decay = lambda t: lr_0 * decay_rate**t
+lr_decay = lambda t: lr_0 #* decay_rate**t
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(lr_decay)
 optimizer = tf.keras.optimizers.Adam()
 
 # Compile Model
 model.compile(optimizer = optimizer,
               loss = cost_function,
-              metrics = ['sparse_categorical_accuracy'])
+              metrics = ['accuracy'])
 
 # Train model
 history = model.fit(dataset, dataset,
@@ -99,9 +98,9 @@ history = model.fit(dataset, dataset,
 ### Plot Training Metrics
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 training_loss = history.history['loss']
-traininig_accuracy = history.history['sparse_categorical_accuracy']
+traininig_accuracy = history.history['accuracy']
 val_loss = history.history['val_loss']
-val_accuracy = history.history['val_sparse_categorical_accuracy']
+val_accuracy = history.history['val_accuracy']
 
 
 plt.figure(1)
@@ -124,7 +123,7 @@ plt.show()
 
 ### Save Model
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-save_weights = True
+save_weights = False
 if save_weights:
     checkpoint_dir = '.\\training_checkpoints'
     checkpoint_prefix = os.path.join(checkpoint_dir, "model_ckpt")
