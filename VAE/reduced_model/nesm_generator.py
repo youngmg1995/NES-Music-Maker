@@ -79,7 +79,7 @@ num_songs = 10
 print('Generating Latent Samples to Generate {} New Tracks'.format(num_songs))
 
 # Grab distributions of dataset over latent space
-# Hoave to run in batches due to size of the dataset
+# Have to run in batches due to size of the dataset
 batch_size = 300
 latent_vecs = get_latent_vecs(model, dataset, batch_size)
 

@@ -14,12 +14,6 @@ data to try and reproduce our initial input. Once effectively trained to
 compress and reproduce our training dataset, we can generate new samples
 by sampling from the reduced latent space and decompressing these datapoints.
 
-This particular VAE is slightly unique in that it doesn't exactly attempt to
-reproduce the inputs. Instead it returns a value for each possible label for
-each output. In other words it provides a probability for each possible output.
-When generating our songs we pick the value at each timestep for each feature
-with the highest probability.
-
 Along with the Model subclass itself, we have defined several methods used for
 training the model within the model. The purpose of all of these methods is to
 allow us to train the model using the inherited 'fit' method implicit to all
@@ -51,6 +45,12 @@ tensorflow.keras.Models. The methods contained include the following:
     6) vae_loss
     - Function for calculating the loss between our input and outputs.
     
+Additionally, we define in this file a tensorflow.keras.utils.Sequence
+subclass. This will be used for creating generators that feed our final
+formatted data samples into our full VAE model without storing their final
+states in memory (which would be very costly since th dataset is very large
+in its final state).
+    
 """
 
 import tensorflow as tf
@@ -81,10 +81,6 @@ class VAE(tf.keras.Model):
             Dimensionality of our compressed latent space.
         input_dims : list of ints
             Dimensionality or number of unique values for each input feature.
-        embed_dims : list of ints
-            Dimensionlity of embedding for each input feature. Note same
-            dimensionality is used for first two input features P1 and P2 since
-            they are similar melodic voices in our NESM soundtracks.
         measures : int
             Outermost dimension of each sample. # of measures in each sample
             track.
@@ -271,26 +267,32 @@ class VAE(tf.keras.Model):
     
 
 class DataSequence(Sequence):
+    '''
+    Tensorflow.keras.utils.Sequence subclass used as a generator when training
+    our full VAE model. This generator does the final reformatting of our data
+    samples before feeding them into the model. It has the added benefit of
+    avoiding storing the entire transformed, final dataset in memory which
+    would be extremely costly.
+    '''
+    def __init__(self, dataset, int2labels_maps, batch_size):
+        self.dataset = dataset
+        self.int2labels_maps = int2labels_maps
+        self.batch_size = batch_size
+        self.batch_indxs = np.arange(0, dataset[0].shape[0], batch_size)
+        if self.batch_indxs[-1] != dataset[0].shape[0]:
+            self.batch_indxs = np.concatenate((
+                self.batch_indxs, np.array([self.dataset[0].shape[0]])
+                ))
 
-        def __init__(self, dataset, int2labels_maps, batch_size):
-            self.dataset = dataset
-            self.int2labels_maps = int2labels_maps
-            self.batch_size = batch_size
-            self.batch_indxs = np.arange(0, dataset[0].shape[0], batch_size)
-            if self.batch_indxs[-1] != dataset[0].shape[0]:
-                self.batch_indxs = np.concatenate((
-                    self.batch_indxs, np.array([self.dataset[0].shape[0]])
-                    ))
+    def __len__(self):
+        return tf.math.ceil(self.dataset[0].shape[0] / self.batch_size)
 
-        def __len__(self):
-            return tf.math.ceil(self.dataset[0].shape[0] / self.batch_size)
+    def __getitem__(self, idx):
+        n = len(self.dataset)
+        batch_x = [self.dataset[i][self.batch_indxs[i]:self.batch_indxs[i+1]]
+                   for i in range(n)]
+        batch_x = [tf.one_hot(batch_x[i], self.int2labels_maps[i].shape[0])
+                   for i in range(n)]
+        batch_x = [batch_x[i][:,:,:,1:] for i in range(n)]
 
-        def __getitem__(self, idx):
-            n = len(self.dataset)
-            batch_x = [self.dataset[i][self.batch_indxs[i]:self.batch_indxs[i+1]]
-                       for i in range(n)]
-            batch_x = [tf.one_hot(batch_x[i], self.int2labels_maps[i].shape[0])
-                       for i in range(n)]
-            batch_x = [batch_x[i][:,:,:,1:] for i in range(n)]
-
-            return batch_x, batch_x
+        return batch_x, batch_x

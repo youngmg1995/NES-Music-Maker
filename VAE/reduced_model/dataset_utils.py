@@ -36,9 +36,6 @@ Functions contained include the following:
     5) load_validation
     - Loads validation data from seprsco files and parses to proper format.
     
-    6) load_song
-    - Loads data from a single seprsco file and parses to proper format.
-    
 """
 
 import tensorflow as tf

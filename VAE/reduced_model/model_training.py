@@ -6,7 +6,6 @@ Created on Wed Apr  1 17:14:19 2020
 
 model_training.py
 ~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~
 This file serves as a script for building and training our reduced VAE model.
 To do so we used the VAE class defined in the file `VAE.py`, as well as helper
 functions from the file `dataset_utils` for loading and parsing our datasets.
@@ -56,7 +55,7 @@ latent_dim = 124
 input_dim = len(int2labels_map) - 1
 dropout = .1
 maxnorm = None
-vae_b1 , vae_b2 = .01, .5#.02 , .1
+vae_b1 , vae_b2 = .02 , .1
 
 # Build Model
 model = VAE(latent_dim, input_dim, measures, measure_len, dropout, 
@@ -77,7 +76,7 @@ cost_function = model.vae_loss
 # Optimizer and learning_rate schedule
 lr_0 = .001
 decay_rate = .998
-lr_decay = lambda t: lr_0 #* decay_rate**t
+lr_decay = lambda t: lr_0 * decay_rate**t
 lr_schedule = tf.keras.callbacks.LearningRateScheduler(lr_decay)
 optimizer = tf.keras.optimizers.Adam()
 

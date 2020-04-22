@@ -19,12 +19,6 @@ NOTE: This model only analyses and generates the first melodic voice for our
 NESM soundtracks. As such, it only has 1 input and output (compared to the
 full model which takes in all 4 feature inputs and outputs each).
 
-This particular VAE is slightly unique in that it doesn't exactly attempt to
-reproduce the inputs. Instead it returns a value for each possible label for
-each output. In other words it provides a probability for each possible output.
-When generating our songs we pick the value at each timestep for each feature
-with the highest probability.
-
 Along with the Model subclass itself, we have defined several methods used for
 training the model within the model. The purpose of all of these methods is to
 allow us to train the model using the inherited 'fit' method implicit to all
@@ -86,8 +80,6 @@ class VAE(tf.keras.Model):
         input_dim : list of ints
             Dimensionality or number of unique values for input. Basically the
             number of unique notes in first melodic voice.
-        embed_dims: list of ints
-            Dimensionlity of embedding for input feature.
         measures : int
             Outermost dimension of each sample. # of measures in each sample
             track.

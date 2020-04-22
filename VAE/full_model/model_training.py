@@ -7,8 +7,9 @@ Created on Wed Apr  1 17:14:19 2020
 model_training.py
 ~~~~~~~~~~~~~~~~~
 This file serves as a script for building and training our VAE model. To do
-so we used the VAE class defined in the file `VAE.py`, as well as helper
-functions from the file `dataset_utils` for loading and parsing our datasets.
+so we used the VAE and DataSequence classes defined in the file `VAE.py`, as
+well as helper functions from the file `dataset_utils` for loading and parsing
+our datasets.
 
 The user has the the ability to specify several parameters that control the
 loading of our data, the structure of our model, as well as the traininig plan
@@ -107,58 +108,13 @@ print(f"Trained Model in {(toc - tic)/60:0.1f} minutes")
 ### Plot Training Metrics
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 training_loss = history.history['loss']
-val_loss = history.history['val_loss']
-training_accuracy = np.mean(np.array([
-    history.history['output_1_sparse_categorical_accuracy'],
-    history.history['output_2_sparse_categorical_accuracy'],
-    history.history['output_3_sparse_categorical_accuracy'],
-    history.history['output_4_sparse_categorical_accuracy']
-    ]), axis = 0)
-val_accuracy = np.mean(np.array([
-    history.history['val_output_1_sparse_categorical_accuracy'],
-    history.history['val_output_2_sparse_categorical_accuracy'],
-    history.history['val_output_3_sparse_categorical_accuracy'],
-    history.history['val_output_4_sparse_categorical_accuracy']
-    ]), axis = 0)
 
 # Total Loss
 plt.figure(1)
 plt.plot(training_loss, 'b', label='Training')
-plt.plot(val_loss, 'r', label='Validation')
 plt.title('Loss vs Time')
 plt.xlabel('Training Epoch')
 plt.ylabel('Avg. Total Loss')
-plt.legend()
-plt.show()
-# Average Accuracy
-plt.figure(2)
-plt.plot(training_accuracy, 'b', label='Training')
-plt.plot(val_accuracy, 'r', label='Validation')
-plt.title('Accuracy vs Time')
-plt.xlabel('Training Epoch')
-plt.ylabel('Avg. Accuracy')
-plt.legend()
-plt.show()
-# Individual Losses
-plt.figure(3)
-plt.plot(history.history['output_1_loss'], 'b', label='P1')
-plt.plot(history.history['output_2_loss'], 'r', label='P2')
-plt.plot(history.history['output_3_loss'], 'g', label='TR')
-plt.plot(history.history['output_4_loss'], 'c', label='NO')
-plt.title('Individual Feature Losses vs Time')
-plt.xlabel('Training Epoch')
-plt.ylabel('Avg. Loss')
-plt.legend()
-plt.show()
-# Individual Accuracies
-plt.figure(4)
-plt.plot(history.history['output_1_sparse_categorical_accuracy'], 'b', label='P1')
-plt.plot(history.history['output_2_sparse_categorical_accuracy'], 'r', label='P2')
-plt.plot(history.history['output_3_sparse_categorical_accuracy'], 'g', label='TR')
-plt.plot(history.history['output_4_sparse_categorical_accuracy'], 'c', label='NO')
-plt.title('Individual Feature Accuracies vs Time')
-plt.xlabel('Training Epoch')
-plt.ylabel('Avg. Accuracy')
 plt.legend()
 plt.show()
 
